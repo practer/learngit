@@ -25,7 +25,7 @@ static void rb_free_subtree (rb_tree tree, rb_node node);
 /* Creates a new node, taking form the memory pool if available. */
 static rb_node rb_new_node(rb_tree tree, int data);
 /* Frees a node to the memory pool. */
-static void rb_tree_node(rb_node node);
+static void rb_free_node(rb_node node);
 
 /* Section 2: Insertion */
 /* corrects for properties violated on an insertion. */
@@ -50,6 +50,8 @@ static rb_node rb_read_node(rb_tree tree, FILE *fp);
 /* Seciont 5: General helper routines */
 /* Returns a node with the given key. */
 static rb_node rb_get_node_by_key(rb_tree haystack, int needle);
+/* Rotates a tree around the given root. */
+static void rb_rotate(rb_tree tree, rb_node root, int go_left);
 /* Rotates a tree around the given root. */
 static rb_node rb_min(rb_tree tree, rb_node node);
 /* Computes height of the tree rooted at node n. */

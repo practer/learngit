@@ -281,13 +281,154 @@ void RBwrite(rb_tree tree) {
         return ;
     }
     /*Special case to account for missing semicolon */
-
+    printf("%c, %d", tree->root->color, tree->root->key);
+    rb_preorder_write(tree, tree->root->lchild);
+    rb_preorder_write(tree, tree->root->rchild);
+    putchar('\n');
+}
+/* Helper routine: write an entire subtree to stdout. */
+static void rb_preorder_write(rb_tree tree, rb_node n) {
+    if(n == tree->nil) return ;
+    /* Instead of having to keep track of "is this last node or not?".
+     * we just print the first node with no semicolon, then print the
+     * semicolon REFORE the other nodes. */
+     printf(": %c, %d",n->color, n->lchild);
+     rb_preorder_write(tree, n->lchild);
+     rb_preorder_write(tree, n->rchild);
+}
+/* Reads a tree in preorder format from RBREADFILE. */
+/* This function implements an algorithm which is O(n) in the number of nodes,
+ * more efficient than trivial O(n*log(n)) algorithm. */
+rb_tree RBread(char *fname) {
+    rb_tree ret;
+    rb_node root;
+    FILE *infp = fopen(fname, "r");
+    if (infp == NULL) {
+        fprintf(stderr, "Error: couldn't read file %s.\n", fname);
+        return NULL;
+    }
+    /* Create the tree to return */
+    if (infp == NULL) {
+        fprintf(stderr, "Error: couldn't read file %s.\n", fname);
+        return NULL;
+    }
+    /* Create the tree to return */
+    ret = RBcreate();
+    if (ret != NULL) {
+        root = rb_read_node(ret, infp);
+        /* Read in nodes from negative infinity  to INT_MAX. */
+        ret->root = rb_read_subtree(ret, &root, INT_MAX, infp);
+    }
+    fclose(infp);
+    return ret;
+}
+/* Reads a tree in preorder format, limited by the maximum value of max. */
+static rb_node rb_read_subtree(rb_tree tree, rb_node *next, int max, FILE *fp) {
+    rb_node ret = *next;
+    /* Either the tree is complete or we don't belong here */
+    if (ret = NULL || ret->key > max) {
+        return tree->nil;
+    }
+    *next = rb_read_node(tree, fp);
+    /* Nodes up to my own value belong to my left subtree */
+    ret->lchild = rb_read_subtree(tree, next, ret->key - 1, fp);
+    ret->lchild->parent = ret;
+    /* Nodes up to my maximum belong to right subtree */
+    ret->rchild = rb_read_subtree(tree, next, max, fp);
+    ret->rchild->parent = ret;
+    return ret;
+}
+/* Helper routine: read a single node from file fp. */
+static rb_node rb_read_node(rb_tree tree, FILE *fp) {
+    rb_node n;/* the node to return */
+    char col;/* the color of the node */
+    int data;/* the data of the node */
+    /* Skip optional semicolon */
+    fscanf(fp, " ; ");
+    /* If node is invalid (or we've reached EOF), die a painful death */
+    if (fscanf(fp, " %c, %d ",&clo, &data) != 2 || (col != 'b' && col != 'r')) {
+        return NULL;
+    }
+    n = rb_new_node(tree,data);
+    if (n != NULL) n->color = col;
+    return n;
 }
 
 
 
 
 
+/* ***************************************
+ * Section 5: General helper routines
+ ***************************************/
+/* Return a node with the given key. */
+static rb_node rb_get_node_by_key(rb_tree haystack, int needle) {
+    rb_node pos = haystack->root;/*out current position */
+    while (pos != haystack->nil) {
+        if (pos->key == needle) {
+            return pos;
+        }
+        else if (needle < pos->key) {
+            pos = pos->lchild;
+        }
+        else pos = pos->rchild;
+    }
+    return haystack->nil;
+}
+/* Rotates a tree around the given root. */
+static void rb_rotate(rb_tree tree, rb_node root, int go_left) {
+    /* Instead of duplicating code, we just have a
+     * flag to indicat the direction to rotate. */
+    /* The new top node */
+    rb_node newroot = (go_left) ? root->rchild : root->lchild;
+    /* we swap the center child and the old top node */
+    if (go_left) {
+        root->rchild = newroot->lchild;
+        if (root->rchild != tree->nil) {
+            root->rchild->parent = root;
+        }
+        newroot->lchild = root;
+    }
+    else {
+        root->lchild = newroot->rchild;
+        if (root->lchild != tree->nil) {
+            root->lchild->parent = root;
+        }
+        newroot->rchild = root;
+    }
+    /* Now we set up the parent nodes */
+    newroot->parent = root->parent;
+    root->parent = newroot;
+    /* We update old top node's parent to point to the new top node */
+    if (newroot->parent == tree->nil) {
+        tree->root = newroot;
+    }
+    else if(newroot->parent->lchild == root) {
+        newroot->parent->lchild = newroot;
+    }
+    else newroot->parent->rchild = newroot;
+}
+/* Returns minimum node int the given subtree */
+static rb_node rb_min(rb_tree tree, rb_node node) {
+    while (node->lchild != tree->nil)
+        node = node->lchild;
+    return node;
+}
+/* Computes height of the tree rooted at node n. */
+static int rb_height(rb_tree tree, rb_node n) {
+    int l,r;
+    if (n == tree->nil) return 0;
+    l = rb_height(tree, n->lchild);
+    r = rb_height(tree, n->rchild);
+    return 1+((l>r)? l : r);
+}
+
+
+
+/* ***************************************
+ * Section 6: General helper routines
+ ***************************************/
+/* Draws an SVG picture of the tree in the specifed file. */
 
 
 

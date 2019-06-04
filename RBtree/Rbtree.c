@@ -220,6 +220,18 @@ int RBdelete(rb_tree tree, int key) {
     return 1;
 }
 /* Helper routine: transplants node 'from' into node 'to's position. */
+static void rb_transplant(rb_tree tree, rb_node to ,rb_node from) {
+    if(to->parent == tree->nil) {
+        tree->root = from;
+    }
+    else if (to == to->parent->lchild) {
+        to->parent->lchild = from;
+    }
+    else {
+        to->parent->rchild = from;
+    }
+    from->parent = to->parent;
+}
 static void rb_delete_fix(rb_tree tree, rb_node n) {
     /* It's always safe to change the root black, and if we reach a red
      * node, we can fix the tree by changing it black. */
@@ -242,7 +254,7 @@ static void rb_delete_fix(rb_tree tree, rb_node n) {
          }
          else {
             /* case 2: sibling blace,"far" child black */
-            if((is_left && sibling->rchild == 'b') ||
+            if((is_left && sibling->rchild->color == 'b') ||
             (!is_left && sibling->lchild->color == 'b')) {
                 if (is_left) {
                     sibling->lchild->color = 'b';
@@ -292,7 +304,7 @@ static void rb_preorder_write(rb_tree tree, rb_node n) {
     /* Instead of having to keep track of "is this last node or not?".
      * we just print the first node with no semicolon, then print the
      * semicolon REFORE the other nodes. */
-     printf(": %c, %d",n->color, n->lchild);
+     printf(": %c, %d",n->color, n->key);
      rb_preorder_write(tree, n->lchild);
      rb_preorder_write(tree, n->rchild);
 }
@@ -346,7 +358,7 @@ static rb_node rb_read_node(rb_tree tree, FILE *fp) {
     /* Skip optional semicolon */
     fscanf(fp, " ; ");
     /* If node is invalid (or we've reached EOF), die a painful death */
-    if (fscanf(fp, " %c, %d ",&clo, &data) != 2 || (col != 'b' && col != 'r')) {
+    if (fscanf(fp, " %c, %d ",&col, &data) != 2 || (col != 'b' && col != 'r')) {
         return NULL;
     }
     n = rb_new_node(tree,data);
@@ -428,8 +440,83 @@ static int rb_height(rb_tree tree, rb_node n) {
 /* ***************************************
  * Section 6: General helper routines
  ***************************************/
-/* Draws an SVG picture of the tree in the specifed file. */
+/* Draws an SVG picture of the tree in the specified file. */
+void RBdraw(rb_tree tree, char *fname) {
+    FILE *fp; /* file to print to */
+    int height = rb_height(tree, tree->root); /* height of the tree */
+    int width; /* width of the image */
+    int adjwidth; /* adjusted width of the image in px */
+    double factor; /* adjust factor for the node positions based on width and adjwidth */
+    if (height == 0) return ;
+    if ((fp = fopen(fname, "w")) == NULL) {
+        fprintf(stderr, "Error: couldn't open %s for writing.\n",fname);
+        return ;
+    }
+    width = (1<<(height-1)) * (2*RADIUS + PADDING) - PADDING + 2*IMGBRDER;
+    adjwidth = (width > MAXWIDTH) ? MAXWIDTH : width;
+    /* If it were not for this factor, calculations would be a lot easier. */
+    factor = (height == 1) ? 1.0 : (adjwidth-2*(RADIUS+IMGBRDER)) / (width-2*(RADIUS+IMGBRDER));
+    fprintf(fp,"<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n"
+            "<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">\n"
+            "<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\" width=\"%dpx\" height=\"%dpx\" "
+            "style=\"background-color:white\">\n",
+            adjwidth, (int)(height * (2*RADIUS + PADDING) - PADDING + 2*IMGBRDER));
+    rb_draw_subtree(fp, tree, tree->root, calcpos(height-1, 0, factor), RADIUS+IMGBRDER, height-1, 0, factor);
+    fputs("</svg>\n",fp);
+    fclose(fp);
+}
+/* This method has complicated and seemingly-arbitrary arguments to reduce on
+ * computation. Tt's a private method, so I feel justified in making it hard to
+ * call.
+ *
+ * Arguments are:
+ * fp   - file pointer to print to
+ * tree - red-balck tree to print
+ * n    - current node
+ * x    - correct x position of center of node
+ * y    - correct y position of center of node
+ * h    - distance from bottom of tree (not necessarily the height of this
+ *        particular node)
+ * rowpos - position in layer (leftmost node in layer is 0, then 1, etc.)
+ * factor - correction factor when the image is > MAXWIDTH.
+ */
+static void rb_draw_subtree(FILE *fp, rb_tree tree, rb_node n, double x, double y,
+                             int h, int rowpos, double factor) {
+    /* string for the color of the node */
+    char *col = (n->color == 'b') ? "black" : "red";
+        /* y position for next row */
+        double ny = y + 2*RADIUS + PADDING;
 
+        /* Rraw left subtree */
+        if (n->lchild != tree->nil) {
+            /* x position of left child */
+            double nx = calcpos(h-1, 2*rowpos, factor);
+            fprintf(fp, "<line x1=\"%f\" y1=\"%f\" x2=\"%f\" y2=\"%f\" "
+                    "style=\"stroke:black;stroke=width:1\"/>\n",x, y, nx, ny);
+            rb_draw_subtree(fp, tree, n->lchild, nx, ny, h-1, 2*rowpos, factor);
+        }
+        /* Draw right subtree */
+        if (n->rchild != tree->nil) {
+		/* x position of right child */
+		double nx = calcpos(h-1, 2*rowpos+1, factor);
+		fprintf(fp, "<line x1=\"%f\" y1=\"%f\" x2=\"%f\" y2=\"%f\" "
+			"style=\"stroke:black;stroke-width:1\"/>\n",
+			x, y, nx, ny);
+		rb_draw_subtree(fp, tree, n->rchild, nx, ny, h-1, 2*rowpos+1, factor);
+        }
+        /* Draw the node itself */
+        fprintf(fp, "<circle cx=\"%f\" cy=\"%f\" r=\"%f\" stroke=\"black\" "
+            "stroke-width=\"1\" fill=\"%s\"/>\n", x, y, RADIUS, col);
+        /* And write the node key */
+        fprintf(fp, "<text x=\"%f\" y=\"%f\" fill=\"white\" text-anchor=\"middle\" "
+            "dy=\"0.5ex\">%d</text>\n", x, y, n->key);
+}
+/* Calculates x position of circle exp rows from the bottom, at position rowpos
+ * in its row. factor corrects for an image which would be wider than MAXWIDTH. */
+static double calcpos(int exp, int rowpos, double factor) {
+    /* this equation took quite a bit of diagramming on paper to come up with. */
+    return ((1<<exp) * (2*rowpos+1) - 1) * (RADIUS + PADDING/2) * factor + RADIUS + IMGBRDER;
+}
 
 
 

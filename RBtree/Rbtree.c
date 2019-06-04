@@ -164,7 +164,7 @@ static rb_node rb_get_uncle(rb_tree tree, rb_node n) {
         return tree->nil;
     }
     gp = n->parent->parent;
-    return (gp->lchild == n->parent)? gp->lchild : gp->rchild;
+    return (gp->lchild == n->parent)? gp->rchild : gp->lchild;
 }
 
 
@@ -208,7 +208,7 @@ int RBdelete(rb_tree tree, int key) {
             successor->rchild->parent = successor;
         }
         rb_transplant(tree, dead, successor);
-        successor->lchild = dead->rchild;
+        successor->lchild = dead->lchild;
         successor->lchild->parent = successor;
         successor->color = dead->color;
     }
@@ -304,7 +304,7 @@ static void rb_preorder_write(rb_tree tree, rb_node n) {
     /* Instead of having to keep track of "is this last node or not?".
      * we just print the first node with no semicolon, then print the
      * semicolon REFORE the other nodes. */
-     printf(": %c, %d",n->color, n->key);
+     printf("; %c, %d",n->color, n->key);
      rb_preorder_write(tree, n->lchild);
      rb_preorder_write(tree, n->rchild);
 }
@@ -315,11 +315,6 @@ rb_tree RBread(char *fname) {
     rb_tree ret;
     rb_node root;
     FILE *infp = fopen(fname, "r");
-    if (infp == NULL) {
-        fprintf(stderr, "Error: couldn't read file %s.\n", fname);
-        return NULL;
-    }
-    /* Create the tree to return */
     if (infp == NULL) {
         fprintf(stderr, "Error: couldn't read file %s.\n", fname);
         return NULL;
@@ -338,7 +333,7 @@ rb_tree RBread(char *fname) {
 static rb_node rb_read_subtree(rb_tree tree, rb_node *next, int max, FILE *fp) {
     rb_node ret = *next;
     /* Either the tree is complete or we don't belong here */
-    if (ret = NULL || ret->key > max) {
+    if (ret == NULL || ret->key > max) {
         return tree->nil;
     }
     *next = rb_read_node(tree, fp);
@@ -452,16 +447,16 @@ void RBdraw(rb_tree tree, char *fname) {
         fprintf(stderr, "Error: couldn't open %s for writing.\n",fname);
         return ;
     }
-    width = (1<<(height-1)) * (2*RADIUS + PADDING) - PADDING + 2*IMGBRDER;
+    width = (1<<(height-1)) * (2*RADIUS + PADDING) - PADDING + 2*IMGBORDER;
     adjwidth = (width > MAXWIDTH) ? MAXWIDTH : width;
     /* If it were not for this factor, calculations would be a lot easier. */
-    factor = (height == 1) ? 1.0 : (adjwidth-2*(RADIUS+IMGBRDER)) / (width-2*(RADIUS+IMGBRDER));
+    factor = (height == 1) ? 1.0 : (adjwidth-2*(RADIUS+IMGBORDER)) / (width-2*(RADIUS+IMGBORDER));
     fprintf(fp,"<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n"
             "<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">\n"
             "<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\" width=\"%dpx\" height=\"%dpx\" "
             "style=\"background-color:white\">\n",
-            adjwidth, (int)(height * (2*RADIUS + PADDING) - PADDING + 2*IMGBRDER));
-    rb_draw_subtree(fp, tree, tree->root, calcpos(height-1, 0, factor), RADIUS+IMGBRDER, height-1, 0, factor);
+            adjwidth, (int)(height * (2*RADIUS + PADDING) - PADDING + 2*IMGBORDER));
+    rb_draw_subtree(fp, tree, tree->root, calcpos(height-1, 0, factor), RADIUS+IMGBORDER, height-1, 0, factor);
     fputs("</svg>\n",fp);
     fclose(fp);
 }
@@ -515,7 +510,7 @@ static void rb_draw_subtree(FILE *fp, rb_tree tree, rb_node n, double x, double 
  * in its row. factor corrects for an image which would be wider than MAXWIDTH. */
 static double calcpos(int exp, int rowpos, double factor) {
     /* this equation took quite a bit of diagramming on paper to come up with. */
-    return ((1<<exp) * (2*rowpos+1) - 1) * (RADIUS + PADDING/2) * factor + RADIUS + IMGBRDER;
+    return ((1<<exp) * (2*rowpos+1) - 1) * (RADIUS + PADDING/2) * factor + RADIUS + IMGBORDER;
 }
 
 

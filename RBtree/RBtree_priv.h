@@ -61,7 +61,7 @@ static int rb_height(rb_tree tre, rb_node n);
 #define RADIUS 15.0 /* Radius of each node */
 #define PADDING 10.0 /* padding between nodes */
 #define MAXWIDTH 1000 /* Maximum width of an image in px */
-#define IMGBRDER 5 /* Blank space around image */
+#define IMGBORDER 5 /* Blank space around image */
 /* Draws a subtree rooted at a node n */
 static void rb_draw_subtree(FILE *fp, rb_tree tree, rb_node n, double x,
                             double y, int h, int rowpos, double factor);
